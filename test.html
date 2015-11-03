@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="mystyle.css">
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+      attribute vec3 position;
+      uniform mat4 proj;
+      uniform mat4 view;
+      uniform mat4 model;
+      uniform float ptSize;
+      
+      void main(void) {
+        gl_PointSize = ptSize;
+        gl_Position = proj * view * model * vec4(position, 1.0);
+      }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+      precision mediump float;
+      void main(void) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      }
+    </script>
+  </head>
+  <body onload="start();initReader();">
+    
+    <div id="page-wrapper">
+      <h2>Hello WebGL</h2>
+
+      <canvas id="canvas" width="640" height="480">
+	Your browser doesn't support
+	<code>&lt;canvas&gt;</code> element.
+      </canvas>
+      <div>
+	Select a obj file: 
+	<input type="file" id="fileInput">
+      </div>
+
+      <pre id="fileDisplayArea"><pre>
+	  
+    </div>
+  </body>
+</html>
