@@ -11,6 +11,10 @@ var mMatrix;
 var vMatrix;
 var pMatrix;
 
+var lastPosX;
+var lastPosY;
+var isMouseDown = false;
+
 
 function start()
 {
@@ -23,7 +27,11 @@ function start()
   var canvas = document.getElementById("canvas");
   initGL(canvas);
   initShaders();
-  //initBuffer();
+  initMat();
+
+  canvas.onmousedown = handleMouseDown;
+  document.onmouseup = handleMouseUp;
+  document.onmousemove = handleMouseMove;
 
   if(gl)
   {
@@ -32,7 +40,8 @@ function start()
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
-  //rendering();
+
+  //update();
 
 }
 
@@ -87,11 +96,12 @@ function setMatUniforms()
   gl.uniformMatrix4fv(shaderProgram.projUniform, false, pMatrix);
   gl.uniformMatrix4fv(shaderProgram.viewUniform, false, vMatrix);
   gl.uniformMatrix4fv(shaderProgram.modelUniform, false, mMatrix);
-  gl.uniform1f(shaderProgram.ptUniform, 2.0);
+  gl.uniform1f(shaderProgram.ptUniform, 1.0);
 }
 
 var vertexBuffer;
 var elementAryBuffer;
+
 function initBuffer()
 {
   vertexBuffer = gl.createBuffer();
@@ -104,7 +114,19 @@ function initBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementAryBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
 		new Uint16Array(model[0].faceIdx), gl.STATIC_DRAW);
-  //alert("initBuffer Done");
+}
+
+function initMat()
+{
+  mMatrix = mat4.identity();
+  vMatrix = mat4.lookupMat();
+  pMatrix = mat4.perspectiveMat(45, gl.viewportWidth/gl.viewportHeight, 0.1, 1000);
+}
+
+function update()
+{
+  //requestAnimFrame(update);
+  rendering();
 }
 
 function rendering()
@@ -112,19 +134,49 @@ function rendering()
   gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  mMatrix = mat4.identity();
-  vMatrix = mat4.lookupMat();
-  pMatrix = mat4.perspectiveMat(45, gl.viewportWidth/gl.viewportHeight, 0.1, 100);
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   setMatUniforms();
-  alert("face num:" + model[0].faceIdx[0] + model[0].faceIdx[1]);
-  gl.drawArrays(gl.POINTS, 0, 10000);
+  //gl.drawArrays(gl.POINTS, 0, 10000);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementAryBuffer);
   setMatUniforms();
-  //alert(model[0].faceIdx.length);
-  //gl.drawElements(gl.TRIANGLES, 30000, gl.UNSIGNED_SHORT, 0);
-    //alert("Render Done");
+  gl.drawElements(gl.TRIANGLES, model[0].faceIdx.length, gl.UNSIGNED_SHORT, 0);
+}
+
+function handleMouseDown(event)
+{
+  isMouseDown = true;
+  lastPosX = event.clientX;
+  lastPosY = event.clientY;
+}
+
+function handleMouseUp(event)
+{
+  isMouseDown = false;
+  //rendering();
+    //alert(vMatrix);
+}
+
+function handleMouseMove(event)
+{
+  if(!isMouseDown)
+    return;
+
+  var newPosX = event.clientX;
+  var newPosY = event.clientY;
+
+  var deltaX = lastPosX - newPosX;
+  var deltaY = lastPosY - newPosY;
+  var rotMatX = mat4.rotateMat(deltaX/10, 0, 1, 0);
+  var rotMatY = mat4.rotateMat(deg2Rad(deltaY/10), 1, 0, 0);
+
+  vMatrix = mat4.mult(vMatrix, rotMatX);
+
+
+  rendering();
+
+  lastPosX = newPosX;
+  lastPosY = newPosY;
 }
 
 
@@ -234,7 +286,7 @@ mat4.lookupMat = function()
   return [1, 0, 0, 0,
 	  0, 1, 0, 0,
 	  0, 0, 1, 0,
-	  0, 0, -10,1];
+	  0, 0, -100,1];
 };
   
 
@@ -244,6 +296,16 @@ mat4.translateMat = function(x, y, z)
 	  0 ,1, 0, 0,
 	  0, 0, 1, 0,
 	  x, y, z, 1];
+};
+mat4.rotateX = function(angle)
+{
+  var a = Math.cos(angle);
+  var b = Math.sin(angle);
+  var c = -b;
+  return [1, 0, 0, 0,
+	  0, a, b, 0,
+	  0, c, a, 0,
+	  0, 0, 0, 1];
 };
 
 mat4.rotateMat = function(angle, x, y, z)
@@ -275,6 +337,51 @@ mat4.rotateMat = function(angle, x, y, z)
 	   0,   0,   0 ,  1];
 };
 
+function deg2Rad(x)
+{
+  return x * Math.PI / 180;
+}
+
+function signedVolumeOfTriangle(p1, p2, p3) {
+    var v321 = p3[0]*p2[1]*p1[2];
+    var v231 = p2[0]*p3[1]*p1[2];
+    var v312 = p3[0]*p1[1]*p2[2];
+    var v132 = p1[0]*p3[1]*p2[2];
+    var v213 = p2[0]*p1[1]*p3[2];
+    var v123 = p1[0]*p2[1]*p3[2];
+    return (1.0/6.0)*(-v321 + v231 + v312 - v132 - v213 + v123);
+}
+
+function meshVolume(mesh)
+{
+  var v = 0;
+  for(var i = 0; i < mesh.faceIdx.length; i += 3)
+  {
+    var idx1 = mesh.faceIdx[i]*3;
+    var idx2 = mesh.faceIdx[i+1]*3;
+    var idx3 = mesh.faceIdx[i+2]*3;
+    var p1 = [mesh.vertices[idx1],
+	      mesh.vertices[idx1+1],
+	      mesh.vertices[idx1+2]];
+    var p2 = [mesh.vertices[idx2],
+	      mesh.vertices[idx2+1],
+	      mesh.vertices[idx2+2]];
+    var p3 = [mesh.vertices[idx3],
+	      mesh.vertices[idx3+1],
+	      mesh.vertices[idx3+2]];
+    
+    v += signedVolumeOfTriangle(p1, p2, p3);
+  }
+
+  var fileDisplayArea = document.getElementById("fileDisplayArea");
+  console.log(mesh.vertexNum);
+  var msg;
+  msg = "VertexNum:" + mesh.vertexNum + "\n";
+  msg +="FacesNum:" + mesh.faceNum + "\n";
+  msg +="Volume:" + v + "\n";
+  fileDisplayArea.innerHTML = msg;
+}
+
 
 // ----------------------------------------------------------------------
 // Read Obj file
@@ -295,33 +402,30 @@ function readObjFile()
 	       faceIdx:[], uvIdx:[], normalIdx:[]};
     
     obj.vertexNum = 0;
-    obj.faceNum = 0;
+    obj.faceNum = 0;   
     
     objText.forEach(function(line) {
       line = line.replace(/\s+/g, ' ');
       line = line.replace(/\s+$/g, '');
+      
       var data = line.split(' ');
+      var fIdx = [], uvIdx = [], nIdx = [];
+      
       if(data[0] === "v")
       {
 	data.shift();
-	data = data.map(function(vt) {
-	  vt = parseFloat(vt);
-	  obj.vertices.push(vt);
-	});
-	//obj.vertices.push(data);
+	data = data.map(function(v) {obj.vertices.push(parseFloat(v));});
 	obj.vertexNum++;
       }
       else if(data[0] === "vn")
       {
 	data.shift();
-	data = data.map(stringToFloat);
-	obj.normal.push(data);
+	data = data.map(function(vn) {obj.normal.push(parseFloat(vn));});
       }
       else if(data[0] === "vt")
       {
 	data.shift();
-	data = data.map(stringToFloat);
-	obj.uv.push(data);
+	data = data.map(function(vt) {obj.uv.push(parseFloat(vt));});
       }
       else if(data[0] === "f")
       {
@@ -335,9 +439,9 @@ function readObjFile()
 	    else
 	      indices = d.split("/");
 	    
-	    obj.faceIdx.push(parseInt(indices[0]));
-	    obj.uvIdx.push(parseInt(indices[1]));
-	    obj.normalIdx.push(parseInt(indices[2]));
+	    obj.faceIdx.push(parseInt(indices[0]-1));
+	    obj.uvIdx.push(parseInt(indices[1]-1));
+	    obj.normalIdx.push(parseInt(indices[2]-1));
 	  });
 	}
 	else if(obj.normal.length > 0)
@@ -350,7 +454,7 @@ function readObjFile()
 	    else
 	      indices = d.split("/");
 	    
-	    obj.faceIdx.push(parseInt(indices[0])-1);
+	    obj.faceIdx.push(parseInt(indices[0]-1));
 	    obj.normalIdx.push(parseInt(indices[1]-1));
 	  });
 	}
@@ -360,18 +464,15 @@ function readObjFile()
 	    obj.faceIdx.push(parseInt(d)-1);
 	  });
 	}
+	
 	obj.faceNum++;
       }
     });
 
-
-    model.push(obj);
-//    var fileDpa = document.getElementById("fileDisplayArea");
-//    fileDpa.innerText = model[0].vertices;
+    meshVolume(obj);
+    model[0] = obj;
     initBuffer();
-    rendering();;
-    //fileDisplayArea.innerText = verticex[4941][0];
-    //alert(obj.vertices.length);
+    rendering();
   };
 
   reader.readAsText(file);
