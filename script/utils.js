@@ -6,10 +6,15 @@ var gl;
 var shaderProgram;
 var model = [];
 
+var cam = {};
+
+var vec3 = {};
+var mat3 = {};
 var mat4 = {};
 var mMatrix;
 var vMatrix;
 var pMatrix;
+var mvMat;
 
 var lastPosX;
 var lastPosY;
@@ -23,12 +28,17 @@ function start()
   fileDisplayArea = document.getElementById('fileDisplayArea');
   fileInput.onchange = readObjFile;
 
+  var aa = [9, -6, -1, 3, -9, -8, 5, 7, 1];
+  var bb = mat3.invert(aa);
+  console.log(bb);
+
   // WebGL initialize.
   var canvas = document.getElementById("canvas");
   initGL(canvas);
   initShaders();
   initMat();
 
+  // Mouse event.
   canvas.onmousedown = handleMouseDown;
   document.onmouseup = handleMouseUp;
   document.onmousemove = handleMouseMove;
@@ -37,6 +47,7 @@ function start()
   {
     gl.clearColor(0.9, 0.9, 0.9, 1.0);
     gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.STENCIL_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
@@ -49,9 +60,9 @@ function initGL(canvas)
 {
   try
   {
-    gl = canvas.getContext("experimental-webgl");
-    gl.viewportWidth = canvas.width;
-    gl.viewportHeight= canvas.height;
+    gl = canvas.getContext("webgl", {stencil:true});
+    gl.viewportWidth  = canvas.width;
+    gl.viewportHeight = canvas.height;
   }
   catch(e)
   {
@@ -82,25 +93,24 @@ function initShaders()
 
   gl.useProgram(shaderProgram);
 
+  // Get variable location.
   shaderProgram.vAttri = gl.getAttribLocation(shaderProgram, "position");
   gl.enableVertexAttribArray(shaderProgram.vAttri);
+
+  shaderProgram.nAttri = gl.getAttribLocation(shaderProgram, "normal");
+  //console.log(shaderProgram.nAttri);
+  //gl.enableVertexAttribArray(shaderProgram.nAttri);
   
-  shaderProgram.projUniform = gl.getUniformLocation(shaderProgram, "proj");
-  shaderProgram.viewUniform = gl.getUniformLocation(shaderProgram, "view");
-  shaderProgram.modelUniform= gl.getUniformLocation(shaderProgram, "model");
+  shaderProgram.mvUniform = gl.getUniformLocation(shaderProgram, "mv");
+  shaderProgram.pUniform  = gl.getUniformLocation(shaderProgram, "p");
   shaderProgram.ptUniform = gl.getUniformLocation(shaderProgram, "ptSize");
+  shaderProgram.colorUniform= gl.getUniformLocation(shaderProgram, "color");
 }
 
-function setMatUniforms()
-{
-  gl.uniformMatrix4fv(shaderProgram.projUniform, false, pMatrix);
-  gl.uniformMatrix4fv(shaderProgram.viewUniform, false, vMatrix);
-  gl.uniformMatrix4fv(shaderProgram.modelUniform, false, mMatrix);
-  gl.uniform1f(shaderProgram.ptUniform, 1.0);
-}
-
-var vertexBuffer;
-var elementAryBuffer;
+var vertexBuffer; // Vertex array buffer.
+var normalBuffer; // Normal array buffer.
+var fElementAryBuffer; // Triangle element array buffer.
+var lElementAryBuffer; // line element array buffer.
 
 function initBuffer()
 {
@@ -109,11 +119,22 @@ function initBuffer()
   gl.bufferData(gl.ARRAY_BUFFER,
 		new Float32Array(model[0].vertices), gl.STATIC_DRAW);
   gl.vertexAttribPointer(shaderProgram.vAttri, 3, gl.FLOAT, false, 0, 0);
+
+  normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER,
+		new Float32Array(model[0].normal), gl.STATIC_DRAW);
+  gl.vertexAttribPointer(shaderProgram.nAttri, 3, gl.FLOAT, false, 0, 0);
   
-  elementAryBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementAryBuffer);
+  fElementAryBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fElementAryBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
 		new Uint16Array(model[0].faceIdx), gl.STATIC_DRAW);
+
+  lElementAryBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lElementAryBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+		new Uint16Array(model[0].lineIdx), gl.STATIC_DRAW);
 }
 
 function initMat()
@@ -131,16 +152,51 @@ function update()
 
 function rendering()
 {
+  var fIdxNum = model[0].faceIdx.length;
+  var lIdxNum = model[0].lineIdx.length;
+  
   gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.clearStencil(0);
+  gl.clear(gl.COLOR_BUFFER_BIT |
+	   gl.DEPTH_BUFFER_BIT |
+	   gl.STENCIL_BUFFER_BIT);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-  setMatUniforms();
-  //gl.drawArrays(gl.POINTS, 0, 10000);
+  //gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  //setMatUniforms();
+  //gl.drawArrays(gl.POINTS, 0, model[0].vertices/3);
 
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementAryBuffer);
+  // Render the mesh into stencil buffer.
+  mvMat = mat4.mult(vMatrix, mMatrix);
+
+  console.log(mvMat);
+  
+  gl.stencilFunc(gl.ALWAYS, 1, -1);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+  
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fElementAryBuffer);
+  //mMatrix = mat4.identity();
   setMatUniforms();
-  gl.drawElements(gl.TRIANGLES, model[0].faceIdx.length, gl.UNSIGNED_SHORT, 0);
+  gl.uniform4f(shaderProgram.colorUniform, 0.5, 0.5, 0.6, 1);
+  gl.drawElements(gl.TRIANGLES, fIdxNum, gl.UNSIGNED_SHORT, 0);
+
+  // Render the thick wireframe version.
+  gl.stencilFunc(gl.NOTEQUAL, 1, -1);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lElementAryBuffer);
+  gl.lineWidth(3);
+  setMatUniforms();
+  gl.uniform4f(shaderProgram.colorUniform, 1, 0, 0, 0.75);
+  gl.drawElements(gl.LINES, lIdxNum, gl.UNSIGNED_SHORT, 0);
+
+  
+}
+
+function setMatUniforms()
+{
+  gl.uniformMatrix4fv(shaderProgram.mvUniform, false, mvMat);
+  gl.uniformMatrix4fv(shaderProgram.pUniform, false, pMatrix);
+  gl.uniform1f(shaderProgram.ptUniform, 1.0);
 }
 
 function handleMouseDown(event)
@@ -171,7 +227,6 @@ function handleMouseMove(event)
   var rotMatY = mat4.rotateMat(deg2Rad(deltaY/10), 1, 0, 0);
 
   vMatrix = mat4.mult(vMatrix, rotMatX);
-
 
   rendering();
 
@@ -220,7 +275,57 @@ function loadShader(scriptID)
 // ----------------------------------------------------------------------
 // Implement for gl math
 // ----------------------------------------------------------------------
+vec3.create = function()
+{
+  return [0, 0, 0];
+};
 
+vec3.cross = function(a, b)
+{
+
+};
+
+mat3.identity = function()
+{
+  return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+};
+
+mat3.determinant = function(a)
+{
+  // 0 1 2  0 3 6
+  // 3 4 5  1 4 7
+  // 6 7 8  2 5 8
+  return (a[0] * (a[4]*a[8] - a[7]*a[5]) -
+	  a[1] * (a[3]*a[8] - a[5]*a[6]) +
+	  a[2] * (a[3]*a[7] - a[4]*a[6]));
+};
+
+mat3.transpose = function(a)
+{
+  return [a[0], a[3], a[6],
+	  a[1], a[4], a[7],
+	  a[2], a[5], a[8]];
+};
+  
+mat3.invert = function(a)
+{
+  var det = mat3.determinant(a);
+
+  if (Math.abs(det) <= 0.00001)
+    return null;
+
+  det = 1 / det;
+  
+  return [(a[4] * a[8] - a[5] * a[7]) * det,
+	  (a[2] * a[7] - a[1] * a[8]) * det,
+	  (a[1] * a[5] - a[2] * a[4]) * det,
+	  (a[5] * a[6] - a[3] * a[8]) * det,
+	  (a[0] * a[8] - a[2] * a[6]) * det,
+	  (a[2] * a[3] - a[0] * a[5]) * det,
+	  (a[3] * a[7] - a[4] * a[6]) * det,
+	  (a[1] * a[6] - a[0] * a[7]) * det,
+	  (a[0] * a[4] - a[1] * a[3]) * det];
+};
 
 mat4.identity = function()
 {
@@ -228,12 +333,8 @@ mat4.identity = function()
   // out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
   // out[8] = 0; out[9] = 0; out[10] = 1; out[11] = 0;
   // out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
-  return [1, 0, 0, 0,
-	  0, 1, 0, 0,
-	  0, 0, 1, 0,
-	  0, 0, 0, 1];
+  return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 };
-
 
 mat4.mult = function(a, b)
 {
@@ -263,6 +364,21 @@ mat4.mult = function(a, b)
 	  m13, m14, m15, m16];
 };
 
+mat4.affineInv = function(a)
+{
+  // 0 4 8 12
+  // 1 5 9 13
+  // 2 6 10 14
+  // 3 7 11 15
+  var det = mat3.determinant([a[0], a[1], a[2],
+			      a[4], a[5], a[6],
+			      a[8], a[9], a[10]]);
+  if (Math.abs(det) <= 0.000001)
+    return null;
+
+  
+};
+
 mat4.perspectiveMat = function(fov, aspectRatio, nearPlane, farPlane)
 {
   // top    = near*tan(pi/180 * fov/2)
@@ -286,9 +402,16 @@ mat4.lookupMat = function()
   return [1, 0, 0, 0,
 	  0, 1, 0, 0,
 	  0, 0, 1, 0,
-	  0, 0, -100,1];
+	  0, 0, -5,1];
 };
-  
+
+mat4.scaleMat = function(x, y, z)
+{
+  return [x, 0, 0, 0,
+	  0, y, 0, 0,
+	  0, 0, z, 0,
+	  0, 0, 0, 1];
+};
 
 mat4.translateMat = function(x, y, z)
 {
@@ -399,7 +522,7 @@ function readObjFile()
     var objText = reader.result.split("\n");
     
     var obj = {vertices:[], normal:[], uv:[],
-	       faceIdx:[], uvIdx:[], normalIdx:[]};
+	       faceIdx:[], uvIdx:[], normalIdx:[], lineIdx:[]};
     
     obj.vertexNum = 0;
     obj.faceNum = 0;   
@@ -409,7 +532,7 @@ function readObjFile()
       line = line.replace(/\s+$/g, '');
       
       var data = line.split(' ');
-      var fIdx = [], uvIdx = [], nIdx = [];
+      // var fIdx = [], uvIdx = [], nIdx = [], lIdx;
       
       if(data[0] === "v")
       {
@@ -469,6 +592,16 @@ function readObjFile()
       }
     });
 
+    for(var i = 0; i < obj.faceIdx.length; i += 3)
+    {
+      obj.lineIdx.push(obj.faceIdx[i]);
+      obj.lineIdx.push(obj.faceIdx[i+1]);
+      obj.lineIdx.push(obj.faceIdx[i+1]);
+      obj.lineIdx.push(obj.faceIdx[i+2]);
+      obj.lineIdx.push(obj.faceIdx[i+2]);
+      obj.lineIdx.push(obj.faceIdx[i]);
+    }
+		       
     meshVolume(obj);
     model[0] = obj;
     initBuffer();

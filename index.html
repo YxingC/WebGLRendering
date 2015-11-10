@@ -5,20 +5,22 @@
     <script type="text/javascript" src="script/utils.js"></script>
     <script type="x-shader/x-vertex" id="vertexShader">
       attribute vec3 position;
-      uniform mat4 proj;
-      uniform mat4 view;
-      uniform mat4 model;
+      attribute vec3 normal;
+      uniform mat4 mv;
+      uniform mat4 p;
       uniform float ptSize;
-      
+
       void main(void) {
+        vec3 n = normal;
         gl_PointSize = ptSize;
-        gl_Position = proj * view * model * vec4(position, 1.0);
+        gl_Position = p * mv * vec4(position, 1.0);
       }
     </script>
     <script type="x-shader/x-fragment" id="fragmentShader">
       precision mediump float;
+      uniform vec4 color;
       void main(void) {
-        gl_FragColor = vec4(0.7, 0.8, 0.9, 1.0);
+        gl_FragColor = color;
       }
     </script>
   </head>
