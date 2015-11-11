@@ -1,3 +1,9 @@
+//
+// utils.js
+// Use WebGL to rendering 3D model. For testing only.
+// Created by Yxing.c on 2015.11.01
+//
+
 // ----------------------------------------------------------------------
 // Inplement for WebGL
 // ----------------------------------------------------------------------
@@ -28,10 +34,6 @@ function start()
   fileDisplayArea = document.getElementById('fileDisplayArea');
   fileInput.onchange = readObjFile;
 
-  var aa = [9, -6, -1, 3, -9, -8, 5, 7, 1];
-  var bb = mat3.invert(aa);
-  console.log(bb);
-
   // WebGL initialize.
   var canvas = document.getElementById("canvas");
   initGL(canvas);
@@ -51,9 +53,6 @@ function start()
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
-
-  //update();
-
 }
 
 function initGL(canvas)
@@ -140,7 +139,7 @@ function initBuffer()
 function initMat()
 {
   mMatrix = mat4.identity();
-  vMatrix = mat4.lookupMat();
+  vMatrix = mat4.lookatMat([0, 0, 10], [0, 0, 0], [0, 1, 0]);
   pMatrix = mat4.perspectiveMat(45, gl.viewportWidth/gl.viewportHeight, 0.1, 1000);
 }
 
@@ -168,7 +167,7 @@ function rendering()
   // Render the mesh into stencil buffer.
   mvMat = mat4.mult(vMatrix, mMatrix);
 
-  console.log(mvMat);
+  var cp = vec3.extrackCamPos_NoScale(mvMat);
   
   gl.stencilFunc(gl.ALWAYS, 1, -1);
   gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
@@ -188,8 +187,6 @@ function rendering()
   setMatUniforms();
   gl.uniform4f(shaderProgram.colorUniform, 1, 0, 0, 0.75);
   gl.drawElements(gl.LINES, lIdxNum, gl.UNSIGNED_SHORT, 0);
-
-  
 }
 
 function setMatUniforms()
@@ -233,8 +230,6 @@ function handleMouseMove(event)
   lastPosX = newPosX;
   lastPosY = newPosY;
 }
-
-
 
 function loadShader(scriptID)
 {
@@ -280,14 +275,67 @@ vec3.create = function()
   return [0, 0, 0];
 };
 
+vec3.create = function(a)
+{
+  return [a[0], a[1], a[2]];
+};
+
+vec3.normalize = function(a)
+{
+  var length = Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+  return [a[0] /= length, a[1] /= length, a[2] /= length];
+};
+
+vec3.sub = function(a, b)
+{
+  return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+};
+
+vec3.dot = function(a, b)
+{
+  return (a[0]*b[0] + a[1]*b[1] + a[2]*b[2]);
+};
+
 vec3.cross = function(a, b)
 {
+  return [a[1]*b[2] - a[2]*b[1],
+	  a[2]*b[0] - a[0]*b[2],
+	  a[0]*b[1] - a[1]*b[0]];
+};
 
+vec3.multMat3 = function(a, b)
+{
+  return [a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+	  a[0]*b[3] + a[1]*b[4] + a[2]*b[5],
+	  a[0]*b[6] + a[1]*b[7] + a[2]*b[8]];
+};
+
+vec3.extrackCamPos_NoScale = function(a)
+{
+  var rotateMat = mat3.create([a[0], a[1], a[2],
+			       a[4], a[5], a[6],
+			       a[8], a[9], a[10]]);
+  var md = vec3.create([-a[12], -a[13], -a[14]]);
+  var retVec = vec3.multMat3(md, rotateMat);
+  console.log(retVec);
+  return retVec;
+};
+
+mat3.create = function(a)
+{
+  return [a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8]];
 };
 
 mat3.identity = function()
 {
   return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+};
+
+mat3.multVec3 = function(a, b)
+{
+  return [a[0]*b[0] + a[3]*b[1] + a[6]*b[2],
+	  a[1]*b[0] + a[4]*b[1] + a[7]*b[2],
+	  a[2]*b[0] + a[5]*b[1] + a[8]*b[2]];
 };
 
 mat3.determinant = function(a)
@@ -336,27 +384,35 @@ mat4.identity = function()
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 };
 
+mat4.transpose = function(a)
+{
+  return [a[0], a[4], a[8], a[12],
+	  a[1], a[5], a[9], a[13],
+	  a[2], a[6], a[10],a[14],
+	  a[3], a[7], a[11],a[15]];
+};
+
 mat4.mult = function(a, b)
 {
-  var m1 = a[0]*b[0] + a[4]*b[1] + a[8]*b[2] + a[12]*b[3];
-  var m2 = a[1]*b[0] + a[5]*b[1] + a[9]*b[2] + a[13]*b[3];
-  var m3 = a[2]*b[0] + a[6]*b[1] + a[10]*b[2] + a[14]*b[3];
-  var m4 = a[3]*b[0] + a[7]*b[1] + a[11]*b[2] + a[15]*b[3];
+  var m1  = a[0]*b[0]  + a[4]*b[1]  + a[8]*b[2]   + a[12]*b[3];
+  var m2  = a[1]*b[0]  + a[5]*b[1]  + a[9]*b[2]   + a[13]*b[3];
+  var m3  = a[2]*b[0]  + a[6]*b[1]  + a[10]*b[2]  + a[14]*b[3];
+  var m4  = a[3]*b[0]  + a[7]*b[1]  + a[11]*b[2]  + a[15]*b[3];
   
-  var m5 = a[0]*b[4] + a[4]*b[5] + a[8]*b[6] + a[12]*b[7];
-  var m6 = a[1]*b[4] + a[5]*b[5] + a[9]*b[6] + a[13]*b[7];
-  var m7 = a[2]*b[4] + a[6]*b[5] + a[10]*b[6] + a[14]*b[7];
-  var m8 = a[3]*b[4] + a[7]*b[5] + a[11]*b[6] + a[15]*b[7];
+  var m5  = a[0]*b[4]  + a[4]*b[5]  + a[8]*b[6]   + a[12]*b[7];
+  var m6  = a[1]*b[4]  + a[5]*b[5]  + a[9]*b[6]   + a[13]*b[7];
+  var m7  = a[2]*b[4]  + a[6]*b[5]  + a[10]*b[6]  + a[14]*b[7];
+  var m8  = a[3]*b[4]  + a[7]*b[5]  + a[11]*b[6]  + a[15]*b[7];
 
-  var m9 = a[0]*b[8] + a[4]*b[9] + a[8]*b[10] + a[12]*b[11];
-  var m10= a[1]*b[8] + a[5]*b[9] + a[9]*b[10] + a[13]*b[11];
-  var m11= a[2]*b[8] + a[6]*b[9] + a[10]*b[10] + a[14]*b[11];
-  var m12= a[3]*b[8] + a[7]*b[9] + a[11]*b[10] + a[15]*b[11];
+  var m9  = a[0]*b[8]  + a[4]*b[9]  + a[8]*b[10]  + a[12]*b[11];
+  var m10 = a[1]*b[8]  + a[5]*b[9]  + a[9]*b[10]  + a[13]*b[11];
+  var m11 = a[2]*b[8]  + a[6]*b[9]  + a[10]*b[10] + a[14]*b[11];
+  var m12 = a[3]*b[8]  + a[7]*b[9]  + a[11]*b[10] + a[15]*b[11];
 
-  var m13= a[0]*b[12] + a[4]*b[13] + a[8]*b[14] + a[12]*b[15];
-  var m14= a[1]*b[12] + a[5]*b[13] + a[9]*b[14] + a[13]*b[15];
-  var m15= a[2]*b[12] + a[6]*b[13] + a[10]*b[14] + a[14]*b[15];
-  var m16= a[3]*b[12] + a[7]*b[13] + a[11]*b[14] + a[15]*b[15];
+  var m13 = a[0]*b[12] + a[4]*b[13] + a[8]*b[14]  + a[12]*b[15];
+  var m14 = a[1]*b[12] + a[5]*b[13] + a[9]*b[14]  + a[13]*b[15];
+  var m15 = a[2]*b[12] + a[6]*b[13] + a[10]*b[14] + a[14]*b[15];
+  var m16 = a[3]*b[12] + a[7]*b[13] + a[11]*b[14] + a[15]*b[15];
 
   return [m1,   m2,  m3,  m4,
 	  m5,   m6,  m7,  m8,
@@ -366,17 +422,28 @@ mat4.mult = function(a, b)
 
 mat4.affineInv = function(a)
 {
-  // 0 4 8 12
-  // 1 5 9 13
-  // 2 6 10 14
-  // 3 7 11 15
-  var det = mat3.determinant([a[0], a[1], a[2],
-			      a[4], a[5], a[6],
-			      a[8], a[9], a[10]]);
+  // Assert Matrix a is affine transform.
+  // a = [ M b ]
+  //     [ 0 1 ]
+  //------------------------------------------------------
+  //inv(a)*[x] = [ inv(M) -inv(M)*b ]*[x] = [inv(M)*(x-b)]
+  //       [1]   [   0         1    ] [1]   [      1     ]
+  
+  
+  var M = [a[0], a[1], a[2], a[4], a[5], a[6], a[8], a[9], a[10]];
+  var det = mat3.determinant(M);
   if (Math.abs(det) <= 0.000001)
     return null;
 
-  
+  var invM = mat3.invert(M);
+
+  return [invM[0], invM[1], invM[2], 0,
+	  invM[3], invM[4], invM[5], 0,
+	  invM[6], invM[7], invM[8], 0,
+	  -invM[0]*a[12] - invM[3]*a[13] - invM[6]*a[14],
+	  -invM[1]*a[12] - invM[4]*a[13] - invM[7]*a[14],
+	  -invM[2]*a[12] - invM[5]*a[13] - invM[8]*a[14],
+	  1];
 };
 
 mat4.perspectiveMat = function(fov, aspectRatio, nearPlane, farPlane)
@@ -397,12 +464,39 @@ mat4.perspectiveMat = function(fov, aspectRatio, nearPlane, farPlane)
 	   0, 0, d, 0];
 };
 
-mat4.lookupMat = function()
+mat4.lookatMat = function(eye, center, up)
 {
-  return [1, 0, 0, 0,
-	  0, 1, 0, 0,
-	  0, 0, 1, 0,
-	  0, 0, -5,1];
+  var zAxis = vec3.normalize(vec3.sub(center, eye));
+  var xAxis = vec3.normalize(vec3.cross(up, zAxis));
+  var yAxis = vec3.cross(zAxis, xAxis);
+
+  var mEye = [-eye[0], -eye[1], -eye[2]];
+  var x = vec3.dot(xAxis, mEye);
+  var y = vec3.dot(yAxis, mEye);
+  var z = vec3.dot(zAxis, mEye);
+
+  var rotMat = [xAxis[0], xAxis[1], xAxis[2], 0,
+		yAxis[0], yAxis[1], yAxis[2], 0,
+		zAxis[0], zAxis[1], zAxis[2], 0,
+		0, 0, 0, 1];
+
+  // Look at Matrix = TranslationMat * RotationMat
+  // view Matrix    = inverse(LookAtMat)
+  //                = inverse(RotMat) * inverse(TransMat)
+  var invR = [xAxis[0], yAxis[0], zAxis[0], 0,
+	      xAxis[1], yAxis[1], zAxis[1], 0,
+	      xAxis[2], yAxis[2], zAxis[2], 0,
+	      0,        0,        0,        1];
+  var invT = [1,      0,      0,      0,
+	      0,      1,      0,      0,
+	      0,      0,      1,      0,
+	      eye[0], eye[1], eye[2], 1];
+  var viewMat = mat4.mult(mat4.transpose(rotMat), invT);
+  return viewMat;
+  // return [xAxis[0], yAxis[0], zAxis[0], 0,
+  // 	  xAxis[1], yAxis[1], zAxis[1], 0,
+  // 	  xAxis[2], yAxis[2], zAxis[2], 0,
+  // 	  x,        y,        z,        1];
 };
 
 mat4.scaleMat = function(x, y, z)
@@ -497,7 +591,7 @@ function meshVolume(mesh)
   }
 
   var fileDisplayArea = document.getElementById("fileDisplayArea");
-  console.log(mesh.vertexNum);
+  
   var msg;
   msg = "VertexNum:" + mesh.vertexNum + "\n";
   msg +="FacesNum:" + mesh.faceNum + "\n";
