@@ -1,13 +1,3 @@
-//
-// utils.js
-// Use WebGL to rendering 3D model. For testing only.
-// Created by Yxing.c on 2015.11.01
-//
-
-// ----------------------------------------------------------------------
-// Inplement for WebGL
-// ----------------------------------------------------------------------
-
 var gl;
 var shaderProgram;
 var model = [];
