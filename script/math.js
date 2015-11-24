@@ -12,10 +12,25 @@ vec3.create = function(a)
   return [a[0], a[1], a[2]];
 };
 
+vec3.length = function(a)
+{
+  return Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+};
+
 vec3.normalize = function(a)
 {
   var length = Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
   return [a[0] /= length, a[1] /= length, a[2] /= length];
+};
+
+vec3.neg = function(a)
+{
+  return [-a[0], -a[1], -a[2]];
+};
+
+vec3.add = function(a, b)
+{
+  return [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
 };
 
 vec3.sub = function(a, b)
@@ -33,6 +48,20 @@ vec3.cross = function(a, b)
   return [a[1]*b[2] - a[2]*b[1],
 	  a[2]*b[0] - a[0]*b[2],
 	  a[0]*b[1] - a[1]*b[0]];
+};
+
+vec3.angle = function(a, b)
+{
+  var nA = vec3.normalize(a);
+  var nB = vec3.normalize(b);
+  var c  = vec3.dot(nA, nB);
+  if(c > 1)
+    c = 1;
+
+  if(c < -1)
+    c = -1;
+  console.log("cos=" + c);
+  return Math.acos(c)*180/Math.PI;
 };
 
 vec3.multMat3 = function(a, b)
@@ -227,6 +256,19 @@ mat4.lookatMat = function(eye, center, up)
   // 	  x,        y,        z,        1];
 };
 
+mat4.lookatMatrix = function(forward, up)
+{
+  var zAxis = vec3.normalize(forward);
+  var xAxis = vec3.normalize(vec3.cross(up, zAxis));
+  var yAxis = vec3.cross(zAxis, xAxis);
+
+  var rotMat = [xAxis[0], xAxis[1], xAxis[2], 0,
+  		yAxis[0], yAxis[1], yAxis[2], 0,
+  		zAxis[0], zAxis[1], zAxis[2], 0,
+  		0, 0, 0, 1];
+  return rotMat;
+};
+
 mat4.scaleMat = function(x, y, z)
 {
   return [x, 0, 0, 0,
@@ -244,8 +286,8 @@ mat4.translateMat = function(x, y, z)
 };
 mat4.rotateX = function(angle)
 {
-  var a = Math.cos(angle);
-  var b = Math.sin(angle);
+  var a = Math.cos(angle * Math.PI / 180);
+  var b = Math.sin(angle * Math.PI / 180);
   var c = -b;
   return [1, 0, 0, 0,
 	  0, a, b, 0,
