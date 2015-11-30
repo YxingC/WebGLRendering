@@ -55,12 +55,12 @@ vec3.angle = function(a, b)
   var nA = vec3.normalize(a);
   var nB = vec3.normalize(b);
   var c  = vec3.dot(nA, nB);
+  
   if(c > 1)
     c = 1;
-
-  if(c < -1)
+  else if(c < -1)
     c = -1;
-  console.log("cos=" + c);
+  
   return Math.acos(c)*180/Math.PI;
 };
 

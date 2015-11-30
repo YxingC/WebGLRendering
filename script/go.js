@@ -1,18 +1,21 @@
 function gObj(gl, shaderInfo)
 {
+  // Check the gl was initialized already.
   if(!gl)
   {
     console.warn("GL not initialize yet!!!");
     return;
   }
-  
-  this.mMat = mat4.identity();
-  
-  if(shaderInfo.pos)
-    this.pos = shaderInfo.pos;
-  else
-    this.pos = [0, 0, 0];
 
+  // ------------------------------------------------------------
+  // First we need to get the source code of vertex shader and
+  // fragment shader, then compile two of them, after that we can
+  // attach vertex and fragment shader to the shader program.
+  // After all we need to get the attribute and uniform location
+  // that we want to pass.
+  // ------------------------------------------------------------
+  
+  // Check the vertex shader was existed and compiled successful.
   if(shaderInfo.vertexShader)
   {
     this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -24,7 +27,13 @@ function gObj(gl, shaderInfo)
       console.error(gl.getShaderInfoLog(this.vertexShader));
     }
   }
+  else
+  {
+    console.error("Missing vertex shader for this object.");
+    return;
+  }
 
+  // Check the fragment shader was existed and compiled successful.
   if(shaderInfo.fragmentShader)
   {
     this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -34,7 +43,11 @@ function gObj(gl, shaderInfo)
     {
       console.error(gl.getShaderInfoLog(this.fragmentShader));
     }
-    
+  }
+  else
+  {
+    console.error("Missing fragment shader for this object.");
+    return;
   }
 
   // Create shader program
@@ -43,11 +56,13 @@ function gObj(gl, shaderInfo)
   gl.attachShader(this.program, this.fragmentShader);
   gl.linkProgram(this.program);
 
+  // Check the shader program was linked successful.
   if(!gl.getProgramParameter(this.program, gl.LINK_STATUS))
   {
     var lastError = gl.getProgramInfoLog(this.program);
     console.warn("Error in program linking:" + lastError);
     //console.warn("Shader program link ERROR!!!");
+    return;
   }
 
   gl.useProgram(this.program);
@@ -67,8 +82,16 @@ function gObj(gl, shaderInfo)
 					     shaderInfo.uniforms[i]));
   }
 
-  this.color = shaderInfo.color;
-
+  // ------------------------------------------------------------
+  // Create the buffers that have to use. I decied to use drawElements
+  // to render my object, so there are two buffers must be created.
+  // One of them is vertex array buffer which contain every single
+  // point of the model. And the ohter one is element array
+  // buffer, which contain the face indices. And one element array
+  // buffer is optional, the element array buffer which to contain
+  // the line indices.(I want to draw the outline of the model)
+  // ------------------------------------------------------------
+  
   this.vertexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER,
@@ -82,6 +105,36 @@ function gObj(gl, shaderInfo)
 
   this.faceIdxNum = shaderInfo.faceIdx.length;
 
+  if(shaderInfo.lineIdx)
+  {
+    this.lineElementAryBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lineElementAryBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+		  new Uint16Array(shaderInfo.lineIdx), gl.STATIC_DRAW);
+
+    this.lineIdxNum = shaderInfo.faceIdx.length;
+  }
+
+  // -----Model matrix and color info-----
+
+  // Initialize the model matrix of this object.
+  this.mMat = mat4.identity();
+
+  // Get the 3D model's centroid. Otherwise assign original.
+  if(shaderInfo.pos)
+  {
+    this.pos = shaderInfo.pos;
+    this.original = shaderInfo.pos;
+  }
+  else
+  {
+    this.pos = [0, 0, 0];
+  }
+  
+  this.color = shaderInfo.color;
+
+
+  // -----Object's operation-----
   this.setUniforms = function()
   {
     gl.uniformMatrix4fv(this.uniforms[0], false, this.mvMat);
@@ -145,6 +198,11 @@ function gObj(gl, shaderInfo)
     this.mMat[14] += this.pos[2];
   };
 
+  this.clean = function()
+  {
+    this.mMat = mat4.identity();
+  };
+
   this.draw = function(type)
   {
     this.mvMat = mat4.mult(vMat, this.mMat);
@@ -160,9 +218,27 @@ function gObj(gl, shaderInfo)
 
     this.setUniforms();
 
+    gl.stencilFunc(gl.ALWAYS, 1, -1);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
     if(type == "POINTS")
       gl.drawElements(gl.POINTS, this.faceIdxNum, gl.UNSIGNED_SHORT, 0);
     else if(type == "TRIANGLES")
       gl.drawElements(gl.TRIANGLES, this.faceIdxNum, gl.UNSIGNED_SHORT, 0);
+
+    this.drawOutline();
+  };
+
+  // Render the outline of model.
+  this.drawOutline = function()
+  {
+    gl.stencilFunc(gl.NOTEQUAL, 1, -1);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lineElementAryBuffer);
+    gl.lineWidth(3);
+    this.setUniforms();
+    gl.uniform4fv(this.uniforms[2], [0.0, 0.6, 0.6, 0.75]);
+    gl.drawElements(gl.LINES, this.lineIdxNum, gl.UNSIGNED_SHORT, 0);   
   };
 }
