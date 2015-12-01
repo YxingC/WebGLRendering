@@ -5,48 +5,6 @@
     <script type="text/javascript" src="script/math.js"></script>
     <script type="text/javascript" src="script/go.js"></script>
     <script type="text/javascript" src="script/utils.js"></script>
-    <script type="x-shader/x-vertex" id="vertexShader">
-      attribute vec3 position;
-      // attribute vec3 normal;
-      uniform mat4 mv;
-      uniform mat4 p;
-      uniform mat4 normalMat;
-      uniform float ptSize;
-
-      // varying vec3 vertPos;
-      // varying vec3 transformN;
-      
-      void main(void) {
-        gl_PointSize = ptSize;
-        gl_Position = p * mv * vec4(position, 1.0);
-
-        // Apply lighting effect
-        // transformN = vec3(normalMat * vec4(normal, 0.0));
-
-        // vec4 vertPos4 = mv * vec4(position, 0.0);
-        // vertPos = vec3(vertPos4);
-      
-      }
-    </script>
-    <script type="x-shader/x-fragment" id="fragmentShader">
-      precision highp float;
-      uniform vec4 color;
-
-      //varying vec3 vertPos;
-      //varying vec3 transformN;
-
-      //const vec3 lightPos = vec3(10.0, 10.0, 10.0);
-      
-      void main(void) {
-        //vec3 lightDir = normalize(lightPos - vertPos);
-        //vec3 normal   = normalize(transformN);
-        //float brightness = dot(normal, lightDir);
-        //brightness = clamp(brightness, 0.0, 1.0);
-        // float lambertian = max(dot(normal, L), 0.0);
-        //gl_FragColor = vec4(color.rgb * brightness, color.a);
-        gl_FragColor = color;
-      }
-    </script>
   </head>
   <body onload="start();">
     
