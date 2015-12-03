@@ -75,7 +75,19 @@ function gObj(gl, shaderInfo)
     console.error("Get attribute location error : position");
   }
 
+  if(shaderInfo.normal)
+  {
+    this.nAttri = gl.getAttribLocation(this.program, "normal");
+    gl.enableVertexAttribArray(this.nAttri);
+    if(this.nAttri === -1)
+    {
+      console.error("Get attribute location error : normal!! " +
+		    "Please check the shader that contain normal attribute or not.");
+    }
+  }
+
   this.uniforms = [];
+  this.uniformKey = shaderInfo.uniforms;
   for(var i = 0; i < shaderInfo.uniforms.length; ++i)
   {
     this.uniforms.push(gl.getUniformLocation(this.program,
@@ -84,12 +96,16 @@ function gObj(gl, shaderInfo)
 
   // ------------------------------------------------------------
   // Create the buffers that have to use. I decied to use drawElements
-  // to render my object, so there are two buffers must be created.
+  // to render the object, so there are two buffers must be created.
+  //
   // One of them is vertex array buffer which contain every single
   // point of the model. And the ohter one is element array
-  // buffer, which contain the face indices. And one element array
-  // buffer is optional, the element array buffer which to contain
-  // the line indices.(I want to draw the outline of the model)
+  // buffer, which contain the face indices.
+  //
+  // And the others are optional. An element array buffer, which I want
+  // to draw the outline of the model, contain the line indices. An array
+  // buffer contain every single normal vertor and an element array
+  // buffer contain the normal index of each face.
   // ------------------------------------------------------------
   
   this.vertexBuffer = gl.createBuffer();
@@ -115,6 +131,19 @@ function gObj(gl, shaderInfo)
     this.lineIdxNum = shaderInfo.faceIdx.length;
   }
 
+  if(shaderInfo.normal)
+  {
+    this.normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,
+		  new Float32Array(shaderInfo.normal), gl.STATIC_DRAW);
+
+    // this.normalElementAryBuffer = gl.createBuffer();
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.normalElementAryBuffer);
+    // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+    // 		  new Uint16Array(shaderInfo.normalIdx), gl.STATIC_DRAW);
+  }
+
   // -----Model matrix and color info-----
 
   // Initialize the model matrix of this object.
@@ -130,9 +159,8 @@ function gObj(gl, shaderInfo)
   {
     this.pos = [0, 0, 0];
   }
-  
-  this.color = shaderInfo.color;
 
+  this.color = shaderInfo.color;
 
   // -----Object's operation-----
   this.setUniforms = function()
@@ -140,6 +168,9 @@ function gObj(gl, shaderInfo)
     gl.uniformMatrix4fv(this.uniforms[0], false, this.mvMat);
     gl.uniformMatrix4fv(this.uniforms[1], false, pMat);
     gl.uniform4fv(this.uniforms[2], this.color);
+
+    // Temporary
+    gl.uniformMatrix4fv(this.uniforms[3], false, this.nMat);
   };
 
   this.translate = function(x, y, z)
@@ -206,13 +237,23 @@ function gObj(gl, shaderInfo)
   this.draw = function(type)
   {
     this.mvMat = mat4.mult(vMat, this.mMat);
+
+    // Temporary
+    this.nMat = mat4.transpose(mat4.affineInv(this.mvMat));
     
     // -----Use Program-----
     gl.useProgram(this.program);
-    // -----Bind vertex buffer-----
+    // -----Bind vertex buffer & normal buffer-----
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.vertexAttribPointer(this.vAttri, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(this.vAttri);
+
+    if(this.normalBuffer)
+    {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
+      gl.vertexAttribPointer(this.nAttri, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(this.nAttri);
+    }
     // -----Bind face element array buffer-----
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElementAryBuffer);
 

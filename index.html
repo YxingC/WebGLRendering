@@ -2,6 +2,7 @@
 <html>
   <head>
     <link rel="stylesheet" type="text/css" href="mystyle.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script type="text/javascript" src="script/math.js"></script>
     <script type="text/javascript" src="script/go.js"></script>
     <script type="text/javascript" src="script/utils.js"></script>
@@ -15,13 +16,12 @@
 	Your browser doesn't support
 	<code>&lt;canvas&gt;</code> element.
       </canvas>
-      <div>
-      	Select a obj file:
-      	<input type="file" id="fileInput">
-      </div>
-
-      <pre id="fileDisplayArea"><pre>
-	  
+      
+      <input id="uploadBtn" type="file" placeholder="Browse.." onchange="readObjFile(objLoader)" />
+      <label for="uploadBtn">Browse..</label>
+      
+      <pre id="fileDisplayArea"></pre>
+      
     </div>
   </body>
 </html>

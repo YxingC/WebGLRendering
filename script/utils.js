@@ -28,6 +28,34 @@ var fs =
       "  gl_FragColor = color;" +
       "}";
 
+var vs_with_lighting =
+      "attribute vec3 position;" +
+      "attribute vec3 normal;" +
+      "uniform mat4 mv;" +
+      "uniform mat4 p;" +
+      "uniform mat4 normalMatrix;" +
+      "varying vec3 vertexPosition;"+
+      "varying vec3 normalTransform;" +
+      "void main(void)" +
+      "{" +
+      "  gl_Position = p * mv * vec4(position, 1.0);" +
+      "  normalTransform = vec3(normalMatrix * vec4(normal, 1.0));" +
+      "  vertexPosition = vec3(mv * vec4(position, 0.0));" +
+      "}";
+
+var fs_with_lighting =
+      "precision highp float;"+
+      "uniform vec4 color;"+
+      "varying vec3 vertexPosition;" +
+      "varying vec3 normalTransform;" +
+      "const vec3 lightPosition = vec3(10, 10, 10);" +
+      "void main(void) {" +
+      "  vec3 lightDir = normalize(lightPosition - vertexPosition);" +
+      "  vec3 normal = normalize(normalTransform);" +
+      "  float dIntansity = dot(normal, lightDir);" +
+      "  gl_FragColor = vec4(color.rgb * dIntansity, color.a);" +
+      "}";
+
 var go = [];
 var fps = 60;
 
@@ -35,14 +63,25 @@ function start()
 {
   // File input initialize (Read obj file).
   fileInput = document.getElementById('fileInput');
+  uploadBtn = document.getElementById("uploadBtn");
   fileDisplayArea = document.getElementById('fileDisplayArea');
-  fileInput.onchange = readObjFile;
+  //fileInput.onchange = readObjFile(objLoader);
 
+  $("[type=file]").on("change", function(){
+    // Name of file and placeholder
+    var file = this.files[0].name;
+    var dflt = $(this).attr("placeholder");
+    if($(this).val()!=""){
+      $(this).next().text(file);
+    } else {
+      $(this).next().text(dflt);
+    }
+  });
   // WebGL initialize.
   var canvas = document.getElementById("canvas");
   initGL(canvas);
   initMat();
-  initObject();
+
 
   this.requestAnimFrame = (function() {
     return (this.requestAnimationFrame       || 
@@ -60,14 +99,15 @@ function start()
 
   if(gl)
   {
-    gl.clearColor(0.9, 0.9, 0.9, 1.0);
+    gl.clearColor(0.2, 0.2, 0.2, 1.0);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.STENCIL_TEST);
     gl.depthFunc(gl.LEQUAL);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    initObject();
   }
 
-  renderLoop();
+  //renderLoop();
 }
 
 function initGL(canvas)
@@ -92,7 +132,7 @@ function initGL(canvas)
 
 function initObject()
 {
-  readTextFile("model/bunny.obj", objLoader, null, [0.2, 0.2, 0.2, 1]);
+  //readTextFile("model/bunny.obj", objLoader, null);
 }
 
 function initMat()
@@ -211,8 +251,13 @@ function handleMouseMove(event)
   var rotMatX = mat4.rotateMat(deltaY/10, 1, 0, 0);
   var rotMatY = mat4.rotateMat(deltaX/10, 0, 1, 0);
 
-  vMat = mat4.mult(vMat, rotMatX);
-  vMat = mat4.mult(vMat, rotMatY);
+  if(go[0])
+  {
+    go[0].rotateWithMat(rotMatX);
+    go[0].rotateWithMat(rotMatY);
+  }
+  //vMat = mat4.mult(vMat, rotMatX);
+  //vMat = mat4.mult(vMat, rotMatY);
 
   rendering();
 
@@ -223,29 +268,21 @@ function handleMouseMove(event)
 // ----------------------------------------------------------------------
 // Read Obj file
 // ----------------------------------------------------------------------
-var fileInput, fileDisplayArea;
+var fileInput, fileDisplayArea, uploadBtn;
 
-function readObjFile()
+function readObjFile(callback)
 {
-  var file = fileInput.files[0];
+  var file = uploadBtn.files[0];
   var reader = new FileReader();
 
   reader.onload = function(event)
   {
-      
-    meshVolume(obj);
-    model.push(obj);
-    //initBuffer();
-    rendering();
+    var text = reader.result;
+    // meshVolume(obj);
+    callback.apply(reader);
   };
 
   reader.readAsText(file);
-}
-
-function loadObjModel(path)
-{
-  var text = readTextFile(path);
-  
 }
 
 function stringToFloat(s)
@@ -272,7 +309,6 @@ function readTextFile(file, callback)
     return null;
   };
   rawFile.send(null);
-
 }
 
 function textLoader()
@@ -287,15 +323,24 @@ function textLoader()
     for(var index in data)
     {
       var f = stringToFloat(data[index]);
-      movePosition.push(f);   
+      movePosition.push(f);
     }
   });
-
 }
 
-function objLoader(rot, color)
+function objLoader(rot)
 {
-  var text = this.responseText;
+  var text;
+  console.log("abC");
+  if(this.responseText)
+  {
+    text = this.responseText;
+  }
+  else
+  {
+
+    text = this.result;
+  }
 
   var objText = text.split("\n");
   
@@ -315,7 +360,20 @@ function objLoader(rot, color)
     if(data[0] === "v")
     {
       data.shift();
-      data = data.map(function(v) {obj.vertices.push(parseFloat(v));});
+      if(data.length == 3)
+      {
+	data = data.map(function(v) {obj.vertices.push(parseFloat(v));});
+      }
+      else if(data.length == 6)
+      {
+	var i = 0;
+	for(; i < 3; ++i)
+	  obj.vertices.push(parseFloat(data[i]));
+
+	for(; i < 6; ++i)
+	  obj.colour.push(parseFloat(data[i]));
+	
+      }
       obj.vertexNum++;
     }
     else if(data[0] === "vn")
@@ -381,6 +439,7 @@ function objLoader(rot, color)
     obj.lineIdx.push(obj.faceIdx[i]);
   }
 
+  // Findout the centroid of model.
   var mX = 0;
   var mY = 0;
   var mZ = 0;
@@ -398,19 +457,26 @@ function objLoader(rot, color)
   var shaderInfo = {vertices:obj.vertices,
 		    faceIdx:obj.faceIdx,
 		    lineIdx:obj.lineIdx,
-		    vertexShader:vs,
-		    fragmentShader:fs,
-		    uniforms:["mv", "p", "color"],
+		    vertexShader:vs_with_lighting,
+		    fragmentShader:fs_with_lighting,
+		    uniforms:["mv", "p", "color", "normalMatrix"],
 		    pos:[mX, mY, mZ]};
-
-  if(color)
+  
+  if(obj.normal)
+  {
+    shaderInfo.normal = obj.normal;
+    shaderInfo.normalIdx = obj.normalIdx;
+  }
+  
+  if(obj.color)
   {
     shaderInfo.color = color;
   }
   else
   {
-    shaderInfo.color = [0.3, 0.4, 0.5, 1];
+    shaderInfo.color = [0.3, 0.55, 0.5, 1];
   }
+
   
   go.push(new gObj(gl, shaderInfo));
   
