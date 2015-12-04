@@ -279,7 +279,7 @@ function gObj(gl, shaderInfo)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lineElementAryBuffer);
     gl.lineWidth(3);
     this.setUniforms();
-    gl.uniform4fv(this.uniforms[2], [0.0, 0.6, 0.6, 0.75]);
+    gl.uniform4fv(this.uniforms[2], [1, 1, 1, 0.5]);
     gl.drawElements(gl.LINES, this.lineIdxNum, gl.UNSIGNED_SHORT, 0);   
   };
 }
