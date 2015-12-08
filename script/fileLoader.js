@@ -88,7 +88,7 @@ function objLoader()
   }
 
   // Initialize the object arrays that may use it, to empty array.
-  var obj = {vertices:[], normal:[], uv:[],
+  var obj = {vertices:[], normal:[], uv:[], color:[],
 	     faceIdx:[], uvIdx:[], normalIdx:[], lineIdx:[]};
   
   obj.vertexNum = 0; obj.faceNum = 0;   
@@ -117,7 +117,7 @@ function objLoader()
 	  obj.vertices.push(parseFloat(data[i]));
 
 	for(; i < 6; ++i)
-	  obj.colour.push(parseFloat(data[i]));	
+	  obj.color.push(parseFloat(data[i]));	
       }
       obj.vertexNum++;
       break;
@@ -198,36 +198,92 @@ function objLoader()
   mY /= obj.vertexNum;
   mZ /= obj.vertexNum;
   
-  var shaderInfo = {vertices:obj.vertices,
-		    faceIdx:obj.faceIdx,
-		    lineIdx:obj.lineIdx,
-		    vertexShader:vs_with_lighting,
-		    fragmentShader:fs_with_lighting,
-		    uniforms:["mv", "p", "color", "normalMatrix"],
-		    pos:[mX, mY, mZ]};
-  
-  if(obj.normal)
-  {
-    shaderInfo.normal = obj.normal;
-    shaderInfo.normalIdx = obj.normalIdx;
-  }
-  
-  if(obj.color)
-  {
-    shaderInfo.color = color;
-  }
-  else
-  {
-    shaderInfo.color = [0.3, 0.55, 0.5, 1];
-  }
+  var shaderInfo = {data:{vertices: obj.vertices,
+			  faceIdx: obj.faceIdx,
+			  lineIdx: obj.lineIdx},
+		    uniformCallback:uCallback,
+		    vertexShader: vs_with_lightingAndPointColor,
+		    fragmentShader: fs_with_lightingAndPointColor,
+		    pos: [mX, mY, mZ],
+		    idx: go.length
+		   };
 
+  if(obj.normal.length > 0)
+  { shaderInfo.data.normal = obj.normal; }
+  else
+  { shaderInfo.data.normal = generateVertexNormal(obj.vertices, obj.faceIdx); }
+  
+  if(obj.color.length > 0)
+  { shaderInfo.data.color = obj.color; }
   
   go.push(new gObj(gl, shaderInfo));
-  
+  go[go.length-1].translateN(-mX, -mY, -mZ);
   rendering();
 }
 
 function stringToFloat(s)
 {
   return parseFloat(s);
+}
+
+function generateVertexNormal(vertices, faceIdx)
+{
+  var vertexFacesRelation = [];
+  var relationIndex = [];
+
+  for(var i = 0; i < vertices.length/3; ++i)
+  {
+    var num = 0;
+    for(var j = 0; j < faceIdx.length; ++j)
+    {
+      if(faceIdx[j] == i)
+      {
+	var fIdx = (j/3)|0;
+	vertexFacesRelation.push(fIdx);
+	num++;
+      }
+    }
+    relationIndex.push(num);
+  }
+  
+  var facesNormal = [];
+
+  for(i = 0; i < faceIdx.length; i += 3)
+  {
+    var idx1 = faceIdx[i]*3;
+    var idx2 = faceIdx[i+1]*3;
+    var idx3 = faceIdx[i+2]*3;
+    var v1 = [vertices[idx1], vertices[idx1+1], vertices[idx1+2]];
+    var v2 = [vertices[idx2], vertices[idx2+1], vertices[idx2+2]];
+    var v3 = [vertices[idx3], vertices[idx3+1], vertices[idx3+2]];
+    var v12 = vec3.normalize(vec3.sub(v2, v1));
+    var v13 = vec3.normalize(vec3.sub(v3, v1));
+    var n   = vec3.normalize(vec3.cross(v12, v13));
+    facesNormal.push(n[0]);
+    facesNormal.push(n[1]);
+    facesNormal.push(n[2]);
+  }
+
+  var verticesNormal = [];
+
+  var idx = 0;
+  for(i = 0; i < vertices.length/3; ++i)
+  {
+    var nx = 0, ny = 0, nz = 0;
+
+    for(j = 0; j < relationIndex[i]; ++j)
+    {
+      fIdx = vertexFacesRelation[idx++]*3;
+      nx += facesNormal[fIdx];
+      ny += facesNormal[fIdx+1];
+      nz += facesNormal[fIdx+2];
+    }
+
+    n = vec3.normalize([nx,ny,nz]);
+    verticesNormal.push(n[0]);
+    verticesNormal.push(n[1]);
+    verticesNormal.push(n[2]);
+  }
+
+  return verticesNormal;
 }

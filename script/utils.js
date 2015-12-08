@@ -4,11 +4,8 @@ var model = [];
 
 var cam = {};
 
-var mMat;
 var vMat;
 var pMat;
-var nMat;
-var mvMat;
 
 var lastPosX;
 var lastPosY;
@@ -17,45 +14,81 @@ var isMouseDown = false;
 var fileInput, fileDisplayArea, uploadBtn;
 
 var vs =
-      "attribute vec3 position;"+
-      "uniform mat4 mv;"+
-      "uniform mat4 p;"+
+      "attribute vec3 aPosition;"+
+      "uniform mat4 uMV;"+
+      "uniform mat4 uP;"+
       "void main(void) {"+
-      "  gl_Position = p * mv * vec4(position, 1.0);"+
+      "  gl_Position = uP * uMV * vec4(uPosition, 1.0);"+
       "}";
 var fs =
       "precision highp float;"+
-      "uniform vec4 color;"+
+      "uniform vec4 uColor;"+
       "void main(void) {"+
-      "  gl_FragColor = color;" +
+      "  gl_FragColor = uColor;" +
       "}";
 
 var vs_with_lighting =
-      "attribute vec3 position;" +
-      "attribute vec3 normal;" +
-      "uniform mat4 mv;" +
-      "uniform mat4 p;" +
-      "uniform mat4 normalMatrix;" +
-      "varying vec3 vertexPosition;"+
-      "varying vec3 normalTransform;" +
+      "attribute vec3 aPosition;" +
+      "attribute vec3 aNormal;" +
+      "uniform mat4 uMV;" +
+      "uniform mat4 uP;" +
+      "uniform mat4 uNormalMatrix;" +
+      "varying vec3 vVertexPosition;"+
+      "varying vec3 vNormalTransform;" +
       "void main(void)" +
       "{" +
-      "  gl_Position = p * mv * vec4(position, 1.0);" +
-      "  normalTransform = vec3(normalMatrix * vec4(normal, 1.0));" +
-      "  vertexPosition = vec3(mv * vec4(position, 0.0));" +
+      "  gl_Position = uP * uMV * vec4(aPosition, 1.0);" +
+      "  vNormalTransform = vec3(uNormalMatrix * vec4(aNormal, 1.0));" +
+      "  vVertexPosition = vec3(uMV * vec4(aPosition, 0.0));" +
       "}";
 
 var fs_with_lighting =
       "precision highp float;"+
-      "uniform vec4 color;"+
-      "varying vec3 vertexPosition;" +
-      "varying vec3 normalTransform;" +
+      "uniform vec4 uColor;"+
+      "varying vec3 vVertexPosition;" +
+      "varying vec3 vNormalTransform;" +
       "const vec3 lightPosition = vec3(10, 10, 10);" +
       "void main(void) {" +
-      "  vec3 lightDir = normalize(lightPosition - vertexPosition);" +
-      "  vec3 normal = normalize(normalTransform);" +
+      "  vec3 lightDir = normalize(lightPosition - vVertexPosition);" +
+      "  vec3 normal = normalize(vNormalTransform);" +
       "  float dIntansity = dot(normal, lightDir);" +
-      "  gl_FragColor = vec4(color.rgb * dIntansity, color.a);" +
+      "  gl_FragColor = vec4(uColor.rgb * dIntansity, uColor.a);" +
+      "}";
+
+var vs_with_lightingAndPointColor =
+      "attribute vec3 aPosition;" +
+      "attribute vec3 aNormal;" +
+      "attribute vec3 aColor;" +
+      "uniform mat4 uMV;" +
+      "uniform mat4 uP;" +
+      "uniform mat4 uNormalMatrix;" +
+      "varying vec3 vVertexPosition;"+
+      "varying vec3 vNormalTransform;" +
+      "varying vec4 vColor;" +
+      "void main(void)" +
+      "{" +
+      "  gl_Position = uP * uMV * vec4(aPosition, 1.0);" +
+      "  vNormalTransform = vec3(uNormalMatrix * vec4(aNormal, 1.0));" +
+      "  vVertexPosition = vec3(uMV * vec4(aPosition, 0.0));" +
+      "  vColor = vec4(aColor, 1.0);" +
+      "}";
+
+var fs_with_lightingAndPointColor =
+      "precision highp float;"+
+      "uniform vec4 uColor;" +
+      "uniform bool uIsOutline;" +
+      "varying vec3 vVertexPosition;" +
+      "varying vec3 vNormalTransform;" +
+      "varying vec4 vColor;" +
+      "const vec3 lightPosition = vec3(10, 10, 10);" +
+      "void main(void) {" +
+      "  vec3 lightDir = normalize(lightPosition - vVertexPosition);" +
+      "  vec3 normal = normalize(vNormalTransform);" +
+      "  float dIntansity = dot(normal, lightDir);" +
+      "  if(uIsOutline)" +
+      "    gl_FragColor = uColor;" +
+      "  else" +
+      "    gl_FragColor = vec4(vColor.rgb * dIntansity, vColor.a);" +
       "}";
 
 var go = [];
@@ -134,13 +167,13 @@ function initGL(canvas)
 
 function initObject()
 {
-  //readTextFile("model/bunny.obj", objLoader, null);
+  //readTextFile("model/bunny.obj", objLoader);
 }
 
 function initMat()
 {
   mMat = mat4.identity();
-  vMat = mat4.lookatMat([0, 0, -10], [0, 0, 0], [0, 1, 0]);
+  vMat = mat4.lookatMat([0, 0, -50], [0, 0, 0], [0, 1, 0]);
   pMat = mat4.perspectiveMat(45, gl.viewportWidth/gl.viewportHeight, 0.1, 1000);
 }
 
@@ -253,10 +286,10 @@ function handleMouseMove(event)
   var rotMatX = mat4.rotateMat(deltaY/10, 1, 0, 0);
   var rotMatY = mat4.rotateMat(deltaX/10, 0, 1, 0);
 
-  if(go[0])
+  for(var i = 0; i < go.length; ++i)
   {
-    go[0].rotateWithMat(rotMatX);
-    go[0].rotateWithMat(rotMatY);
+    go[i].rotateWithMat(rotMatX);
+    go[i].rotateWithMat(rotMatY);
   }
   //vMat = mat4.mult(vMat, rotMatX);
   //vMat = mat4.mult(vMat, rotMatY);
@@ -265,6 +298,15 @@ function handleMouseMove(event)
 
   lastPosX = newPosX;
   lastPosY = newPosY;
+}
+
+function uCallback(i)
+{
+  gl.uniformMatrix4fv(go[i].uniforms.loc[0], false, go[i].mvMat);
+  gl.uniformMatrix4fv(go[i].uniforms.loc[1], false, pMat);
+  gl.uniformMatrix4fv(go[i].uniforms.loc[2], false, go[i].nMat);
+  gl.uniform4fv(go[i].uniforms.loc[3], go[i].defaultColor);
+  gl.uniform1i(go[i].uniforms.loc[4], go[i].isOutline);
 }
 
 
