@@ -284,15 +284,16 @@ function handleMouseMove(event)
   var deltaX = lastPosX - newPosX;
   var deltaY = lastPosY - newPosY;
   var rotMatX = mat4.rotateMat(deltaY/10, 1, 0, 0);
-  var rotMatY = mat4.rotateMat(deltaX/10, 0, 1, 0);
+  var rotMatZ = mat4.rotateMat(deltaX/10, 0, 0, 1);
 
-  for(var i = 0; i < go.length; ++i)
-  {
-    go[i].rotateWithMat(rotMatX);
-    go[i].rotateWithMat(rotMatY);
-  }
-  //vMat = mat4.mult(vMat, rotMatX);
-  //vMat = mat4.mult(vMat, rotMatY);
+  // for(var i = 0; i < go.length; ++i)
+  // {
+  //   go[i].rotateWithMat(rotMatX);
+  //   go[i].rotateWithMat(rotMatY);
+  // }
+  
+  vMat = mat4.mult(vMat, rotMatX);
+  vMat = mat4.mult(vMat, rotMatZ);
 
   rendering();
 
@@ -300,8 +301,9 @@ function handleMouseMove(event)
   lastPosY = newPosY;
 }
 
-function uCallback(i)
+function uCallback()
 {
+  var i = this.index;
   gl.uniformMatrix4fv(go[i].uniforms.loc[0], false, go[i].mvMat);
   gl.uniformMatrix4fv(go[i].uniforms.loc[1], false, pMat);
   gl.uniformMatrix4fv(go[i].uniforms.loc[2], false, go[i].nMat);

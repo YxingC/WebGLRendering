@@ -73,14 +73,12 @@ function textLoader()
 function objLoader()
 {
   var text = null;
+  // Using XMLHttpRequest.
   if(this.responseText)
-  { // Using XMLHttpRequest.
-    text = this.responseText.split('\n');
-  }
+  { text = this.responseText.split('\n'); }
+  // Using Input Tag.
   else if(this.result)
-  { // Using Input Tag.
-    text = this.result.split('\n');
-  }
+  { text = this.result.split('\n'); }
   else
   {
     console.error("Can't identify the text that you want to process.");
@@ -114,10 +112,9 @@ function objLoader()
       {
 	var i = 0;
 	for(; i < 3; ++i)
-	  obj.vertices.push(parseFloat(data[i]));
-
+	{ obj.vertices.push(parseFloat(data[i])); }
 	for(; i < 6; ++i)
-	  obj.color.push(parseFloat(data[i]));	
+	{ obj.color.push(parseFloat(data[i])); }
       }
       obj.vertexNum++;
       break;
@@ -184,19 +181,30 @@ function objLoader()
   }
 
   // Findout the centroid of model.
-  var mX = 0;
-  var mY = 0;
-  var mZ = 0;
-  for(i = 0; i < obj.vertices.length; i += 3)
-  {
-    mX += obj.vertices[i];
-    mY += obj.vertices[i+1];
-    mZ += obj.vertices[i+2];
-  }
+  var minX = obj.vertices[0],
+      minY = obj.vertices[1],
+      minZ = obj.vertices[2],
+      maxX = obj.vertices[0],
+      maxY = obj.vertices[1],
+      maxZ = obj.vertices[2];
 
-  mX /= obj.vertexNum;
-  mY /= obj.vertexNum;
-  mZ /= obj.vertexNum;
+  for(i = 3; i < obj.vertices.length; i += 3)
+  {
+    if(obj.vertices[i] < minX)
+    { minX = obj.vertices[i]; }
+    if(obj.vertices[i] > maxX)
+    { maxX = obj.vertices[i]; }
+    if(obj.vertices[i+1] < minY)
+    { minY = obj.vertices[i+1]; }
+    if(obj.vertices[i+1] > maxY)
+    { maxY = obj.vertices[i+1]; }
+    if(obj.vertices[i+2] < minZ)
+    { minZ = obj.vertices[i+2]; }
+    if(obj.vertices[i+2] > maxZ)
+    { maxZ = obj.vertices[i+2]; }
+  }
+  
+  var mX = (minX + maxX)/2, mY = (minY + maxY)/2, mZ = (minZ + maxZ)/2;
   
   var shaderInfo = {data:{vertices: obj.vertices,
 			  faceIdx: obj.faceIdx,
@@ -229,25 +237,16 @@ function stringToFloat(s)
 function generateVertexNormal(vertices, faceIdx)
 {
   var vertexFacesRelation = [];
-  var relationIndex = [];
 
-  for(var i = 0; i < vertices.length/3; ++i)
+  while(vertexFacesRelation.push([]) < vertices.length/3);
+  
+  for(var i = 0; i < faceIdx.length; ++i)
   {
-    var num = 0;
-    for(var j = 0; j < faceIdx.length; ++j)
-    {
-      if(faceIdx[j] == i)
-      {
-	var fIdx = (j/3)|0;
-	vertexFacesRelation.push(fIdx);
-	num++;
-      }
-    }
-    relationIndex.push(num);
+    var fIdx = (i/3) | 0;
+    vertexFacesRelation[faceIdx[i]].push(fIdx);
   }
   
   var facesNormal = [];
-
   for(i = 0; i < faceIdx.length; i += 3)
   {
     var idx1 = faceIdx[i]*3;
@@ -265,15 +264,13 @@ function generateVertexNormal(vertices, faceIdx)
   }
 
   var verticesNormal = [];
-
-  var idx = 0;
   for(i = 0; i < vertices.length/3; ++i)
   {
     var nx = 0, ny = 0, nz = 0;
 
-    for(j = 0; j < relationIndex[i]; ++j)
+    for(var j = 0; j < vertexFacesRelation[i].length; ++j)
     {
-      fIdx = vertexFacesRelation[idx++]*3;
+      fIdx = vertexFacesRelation[i][j]*3;
       nx += facesNormal[fIdx];
       ny += facesNormal[fIdx+1];
       nz += facesNormal[fIdx+2];

@@ -138,7 +138,6 @@ function gObj(gl, shaderInfo)
     return;
   }
 
-
   if(shaderInfo.data.faceIdx)
   {
     this.faceElementAryBuffer = gl.createBuffer();
@@ -149,9 +148,7 @@ function gObj(gl, shaderInfo)
     this.faceIdxNum = shaderInfo.data.faceIdx.length;
   }
   else
-  {
-    console.error("No face indices for this object."); return;
-  }
+  { console.error("No face indices for this object."); return; }
 
   if(shaderInfo.data.lineIdx)
   {
@@ -181,9 +178,7 @@ function gObj(gl, shaderInfo)
   		  new Float32Array(shaderInfo.data.color), gl.STATIC_DRAW);
   }
   else
-  {
-    this.defaultColor = [0.3, 0.55, 0.5, 1];
-  }
+  { this.defaultColor = [0.3, 0.55, 0.5, 1]; }
 
   // -----Model matrix and color info-----
 
@@ -198,21 +193,11 @@ function gObj(gl, shaderInfo)
     this.original = shaderInfo.pos;
   }
   else
-  {
-    this.pos = [0, 0, 0];
-  }
+  { this.pos = [0, 0, 0]; }
 
   // -----Object's operation-----
-  this.setUniforms = function(i)
-  {
-    this.uniforms.callback(i);
-    // gl.uniformMatrix4fv(this.uniforms[0], false, this.mvMat);
-    // gl.uniformMatrix4fv(this.uniforms[1], false, pMat);
-    // gl.uniform4fv(this.uniforms[2], this.color);
-
-    // // Temporary
-    // gl.uniformMatrix4fv(this.uniforms[3], false, this.nMat);
-  };
+  this.setUniforms = function()
+  { this.uniforms.callback.call(this); };
 
   this.translate = function(x, y, z)
   {
@@ -319,16 +304,15 @@ function gObj(gl, shaderInfo)
 
     this.isOutline = false;
     this.defaultColor = [0.3, 0.55, 0.5, 1];
-    this.setUniforms(this.index);
+    this.setUniforms();
 
     gl.stencilFunc(gl.ALWAYS, 1, -1);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
 
-    console.log(this.faceIdxNum);
     if(type == "POINTS")
-      gl.drawElements(gl.POINTS, this.faceIdxNum, gl.UNSIGNED_SHORT, 0);
+    { gl.drawElements(gl.POINTS, this.faceIdxNum, gl.UNSIGNED_SHORT, 0); }
     else if(type == "TRIANGLES")
-      gl.drawElements(gl.TRIANGLES, this.faceIdxNum, gl.UNSIGNED_SHORT, 0);
+    { gl.drawElements(gl.TRIANGLES, this.faceIdxNum, gl.UNSIGNED_SHORT, 0); }
 
     this.drawOutline();
   };
@@ -344,7 +328,7 @@ function gObj(gl, shaderInfo)
 
     this.isOutline = true;
     this.defaultColor = [1, 1, 1, 0.5];
-    this.setUniforms(this.index);
+    this.setUniforms();
 
     gl.drawElements(gl.LINES, this.lineIdxNum, gl.UNSIGNED_SHORT, 0);   
   };
