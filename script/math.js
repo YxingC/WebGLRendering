@@ -17,6 +17,11 @@ vec3.length = function(a)
   return Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
 };
 
+vec3.distance = function(a, b)
+{
+  return vec3.length([a[0]-b[0], a[1]-b[1], a[2]-b[2]]);
+};
+
 vec3.normalize = function(a)
 {
   var length = Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
@@ -36,6 +41,11 @@ vec3.add = function(a, b)
 vec3.sub = function(a, b)
 {
   return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+};
+
+vec3.multScale = function(s, a)
+{
+  return [s*a[0], s*a[1], s*a[2]];
 };
 
 vec3.dot = function(a, b)
@@ -239,15 +249,15 @@ mat4.lookatMat = function(eye, center, up)
   // Look at Matrix = TranslationMat * RotationMat
   // view Matrix    = inverse(LookAtMat)
   //                = inverse(RotMat) * inverse(TransMat)
-  var invR = [xAxis[0], yAxis[0], zAxis[0], 0,
-	      xAxis[1], yAxis[1], zAxis[1], 0,
-	      xAxis[2], yAxis[2], zAxis[2], 0,
-	      0,        0,        0,        1];
+  var invR = [xAxis[0], yAxis[0], -zAxis[0], 0,
+	      xAxis[1], yAxis[1], -zAxis[1], 0,
+	      xAxis[2], yAxis[2], -zAxis[2], 0,
+	      0,        0,        0,         1];
   
   var invT = [1,        0,        0,        0,
 	      0,        1,        0,        0,
 	      0,        0,        1,        0,
-	      eye[0],   eye[1],   eye[2],   1];
+	      -eye[0],  -eye[1],  -eye[2],  1];
   var viewMat = mat4.mult(invR, invT);
   return viewMat;
   // return [xAxis[0], yAxis[0], zAxis[0], 0,
