@@ -223,6 +223,13 @@ function gObj(gl, shaderInfo)
     //this.pos = [x, y, z];
   };
 
+  this.translateN = function(m)
+  {
+    this.mMat[12] += m[0];
+    this.mMat[13] += m[1];
+    this.mMat[14] += m[2];
+  };
+
   this.rotateX = function(angle)
   {
     this.mMat[12] -= this.pos[0];

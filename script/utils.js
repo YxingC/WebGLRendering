@@ -115,6 +115,7 @@ function start()
   // WebGL initialize.
   var canvas = document.getElementById("canvas");
   initGL(canvas);
+  initObject();
   initMat();
 
 
@@ -139,7 +140,7 @@ function start()
     gl.enable(gl.STENCIL_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    initObject();
+    rendering();
   }
 
   //renderLoop();
@@ -172,9 +173,9 @@ function initObject()
 
 function initMat()
 {
-  mMat = mat4.identity();
-  vMat = mat4.lookatMat([0, 0, -50], [0, 0, 0], [0, 1, 0]);
-  pMat = mat4.perspectiveMat(45, gl.viewportWidth/gl.viewportHeight, 0.1, 1000);
+  // mMat = mat4.identity();
+  //vMat = mat4.lookatMat([0, 0, -50], [0, 0, 0], [0, 1, 0]);
+  pMat = mat4.perspectiveMat(60, gl.viewportWidth/gl.viewportHeight, 0.1, 1000);
 }
 
 function renderLoop()

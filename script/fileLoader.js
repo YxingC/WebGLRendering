@@ -181,30 +181,20 @@ function objLoader()
   }
 
   // Findout the centroid of model.
-  var minX = obj.vertices[0],
-      minY = obj.vertices[1],
-      minZ = obj.vertices[2],
-      maxX = obj.vertices[0],
-      maxY = obj.vertices[1],
-      maxZ = obj.vertices[2];
-
-  for(i = 3; i < obj.vertices.length; i += 3)
-  {
-    if(obj.vertices[i] < minX)
-    { minX = obj.vertices[i]; }
-    if(obj.vertices[i] > maxX)
-    { maxX = obj.vertices[i]; }
-    if(obj.vertices[i+1] < minY)
-    { minY = obj.vertices[i+1]; }
-    if(obj.vertices[i+1] > maxY)
-    { maxY = obj.vertices[i+1]; }
-    if(obj.vertices[i+2] < minZ)
-    { minZ = obj.vertices[i+2]; }
-    if(obj.vertices[i+2] > maxZ)
-    { maxZ = obj.vertices[i+2]; }
-  }
-  
-  var mX = (minX + maxX)/2, mY = (minY + maxY)/2, mZ = (minZ + maxZ)/2;
+  var boundingSphere = generateBoundingSphere(obj.vertices);
+  var eye = [0, 0, 0];
+  var target = boundingSphere.origin;
+  var toEye = vec3.normalize(vec3.sub(eye, target));
+  var tan = Math.tan((Math.PI/6));
+  var sin = Math.sin((Math.PI/6));
+  var dist = boundingSphere.radius / tan;
+  eye = vec3.add([0, 0, 0], vec3.multScale(dist,[0, 0, -1]));
+  console.log(boundingSphere);
+  console.log(target);
+  console.log(dist);
+  console.log(eye);
+  //vMat = mat4.lookatMat([0,0,-50], [0,0,0], [0, 1, 0]);
+  vMat = mat4.lookatMat(eye, [0, 0, 0], [0, 1, 0]);
   
   var shaderInfo = {data:{vertices: obj.vertices,
 			  faceIdx: obj.faceIdx,
@@ -212,7 +202,7 @@ function objLoader()
 		    uniformCallback:uCallback,
 		    vertexShader: vs_with_lightingAndPointColor,
 		    fragmentShader: fs_with_lightingAndPointColor,
-		    pos: [mX, mY, mZ],
+		    pos: boundingSphere.origin,
 		    idx: go.length
 		   };
 
@@ -225,13 +215,36 @@ function objLoader()
   { shaderInfo.data.color = obj.color; }
   
   go.push(new gObj(gl, shaderInfo));
-  go[go.length-1].translateN(-mX, -mY, -mZ);
+  go[go.length-1].translateN(vec3.neg(boundingSphere.origin));
   rendering();
 }
 
-function stringToFloat(s)
+function generateBoundingSphere(vertices)
 {
-  return parseFloat(s);
+  var minX = vertices[0], minY = vertices[1], minZ = vertices[2],
+      maxX = vertices[0], maxY = vertices[1], maxZ = vertices[2];
+
+  for(var i = 3; i < vertices.length; i += 3)
+  {
+    if(vertices[i] < minX)
+    { minX = vertices[i]; }
+    if(vertices[i] > maxX)
+    { maxX = vertices[i]; }
+    if(vertices[i+1] < minY)
+    { minY = vertices[i+1]; }
+    if(vertices[i+1] > maxY)
+    { maxY = vertices[i+1]; }
+    if(vertices[i+2] < minZ)
+    { minZ = vertices[i+2]; }
+    if(vertices[i+2] > maxZ)
+    { maxZ = vertices[i+2]; }
+  }
+
+  var op = [(minX + maxX)/2, (minY + maxY)/2, (minZ + maxZ)/2];
+  var radius = vec3.distance(op, [maxX, maxY, maxZ]);
+
+  var bs = {origin:op, radius:radius};
+  return bs;
 }
 
 function generateVertexNormal(vertices, faceIdx)
@@ -283,4 +296,9 @@ function generateVertexNormal(vertices, faceIdx)
   }
 
   return verticesNormal;
+}
+
+function stringToFloat(s)
+{
+  return parseFloat(s);
 }

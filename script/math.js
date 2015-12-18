@@ -237,9 +237,9 @@ mat4.lookatMat = function(eye, center, up)
   var xAxis = vec3.normalize(vec3.cross(up, zAxis));
   var yAxis = vec3.cross(zAxis, xAxis);
 
-  var x = -vec3.dot(xAxis, eye);
-  var y = -vec3.dot(yAxis, eye);
-  var z = vec3.dot(zAxis, eye);
+  // var x = -vec3.dot(xAxis, eye);
+  // var y = -vec3.dot(yAxis, eye);
+  // var z = vec3.dot(zAxis, eye);
 
   // var rotMat = [xAxis[0], xAxis[1], xAxis[2], 0,
   // 		yAxis[0], yAxis[1], yAxis[2], 0,
@@ -249,15 +249,15 @@ mat4.lookatMat = function(eye, center, up)
   // Look at Matrix = TranslationMat * RotationMat
   // view Matrix    = inverse(LookAtMat)
   //                = inverse(RotMat) * inverse(TransMat)
-  var invR = [xAxis[0], yAxis[0], -zAxis[0], 0,
-	      xAxis[1], yAxis[1], -zAxis[1], 0,
-	      xAxis[2], yAxis[2], -zAxis[2], 0,
+  var invR = [xAxis[0], yAxis[0], zAxis[0], 0,
+	      xAxis[1], yAxis[1], zAxis[1], 0,
+	      xAxis[2], yAxis[2], zAxis[2], 0,
 	      0,        0,        0,         1];
   
   var invT = [1,        0,        0,        0,
 	      0,        1,        0,        0,
 	      0,        0,        1,        0,
-	      -eye[0],  -eye[1],  -eye[2],  1];
+	      -eye[0],  -eye[1],  eye[2],  1];
   var viewMat = mat4.mult(invR, invT);
   return viewMat;
   // return [xAxis[0], yAxis[0], zAxis[0], 0,
