@@ -187,6 +187,15 @@ mat4.mult = function(a, b)
 	  m13, m14, m15, m16];
 };
 
+mat4.multVec = function(a, b)
+{
+  var x = a[0]*b[0]+ a[4]*b[1] + a[8]*b[2] + a[12]*b[3];
+  var y = a[1]*b[0]+ a[5]*b[1] + a[9]*b[2] + a[13]*b[3];
+  var z = a[2]*b[0]+ a[6]*b[1] + a[10]*b[2] + a[14]*b[3];
+  var w = a[3]*b[0]+ a[7]*b[1] + a[11]*b[2] + a[15]*b[3];
+  return [x, y, z, w];
+};
+
 mat4.affineInv = function(a)
 {
   // Assert Matrix a is affine transform.
@@ -233,13 +242,13 @@ mat4.perspectiveMat = function(fov, aspectRatio, nearPlane, farPlane)
 
 mat4.lookatMat = function(eye, center, up)
 {
-  var zAxis = vec3.normalize(vec3.sub(center, eye));
+  var zAxis = vec3.normalize(vec3.sub(eye, center));
   var xAxis = vec3.normalize(vec3.cross(up, zAxis));
   var yAxis = vec3.cross(zAxis, xAxis);
 
-  // var x = -vec3.dot(xAxis, eye);
-  // var y = -vec3.dot(yAxis, eye);
-  // var z = vec3.dot(zAxis, eye);
+  var x = -vec3.dot(xAxis, eye);
+  var y = -vec3.dot(yAxis, eye);
+  var z = -vec3.dot(zAxis, eye);
 
   // var rotMat = [xAxis[0], xAxis[1], xAxis[2], 0,
   // 		yAxis[0], yAxis[1], yAxis[2], 0,
@@ -249,24 +258,24 @@ mat4.lookatMat = function(eye, center, up)
   // Look at Matrix = TranslationMat * RotationMat
   // view Matrix    = inverse(LookAtMat)
   //                = inverse(RotMat) * inverse(TransMat)
-  var invR = [xAxis[0], yAxis[0], zAxis[0], 0,
-	      xAxis[1], yAxis[1], zAxis[1], 0,
-	      xAxis[2], yAxis[2], zAxis[2], 0,
-	      0,        0,        0,         1];
+  // var invR = [xAxis[0], yAxis[0], -zAxis[0], 0,
+  // 	      xAxis[1], yAxis[1], -zAxis[1], 0,
+  // 	      xAxis[2], yAxis[2], -zAxis[2], 0,
+  // 	      0,        0,        0,         1];
   
-  var invT = [1,        0,        0,        0,
-	      0,        1,        0,        0,
-	      0,        0,        1,        0,
-	      -eye[0],  -eye[1],  eye[2],  1];
-  var viewMat = mat4.mult(invR, invT);
-  return viewMat;
-  // return [xAxis[0], yAxis[0], zAxis[0], 0,
-  // 	  xAxis[1], yAxis[1], zAxis[1], 0,
-  // 	  xAxis[2], yAxis[2], zAxis[2], 0,
-  // 	  x,        y,        z,        1];
+  // var invT = [1,        0,        0,        0,
+  // 	      0,        1,        0,        0,
+  // 	      0,        0,        1,        0,
+  // 	      -eye[0],  -eye[1],  -eye[2],  1];
+  // var viewMat = mat4.mult(invR, invT);
+  // return viewMat;
+  return [xAxis[0], yAxis[0], zAxis[0], 0,
+  	  xAxis[1], yAxis[1], zAxis[1], 0,
+  	  xAxis[2], yAxis[2], zAxis[2], 0,
+  	  x,        y,        z,        1];
 };
 
-mat4.lookatMatrix = function(forward, up)
+mat4.lookatMatrix = function(eye, target, up)
 {
   var zAxis = vec3.normalize(forward);
   var xAxis = vec3.normalize(vec3.cross(up, zAxis));
@@ -281,19 +290,24 @@ mat4.lookatMatrix = function(forward, up)
 
 mat4.scaleMat = function(x, y, z)
 {
-  return [x, 0, 0, 0,
-	  0, y, 0, 0,
-	  0, 0, z, 0,
-	  0, 0, 0, 1];
+  return [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1];
+};
+
+mat4.scaleMat = function(s)
+{
+  return [s[0], 0, 0, 0, 0, s[1], 0, 0, 0, 0, s[2], 0, 0, 0, 0, 1];
 };
 
 mat4.translateMat = function(x, y, z)
 {
-  return [1, 0, 0 ,0,
-	  0 ,1, 0, 0,
-	  0, 0, 1, 0,
-	  x, y, z, 1];
+  return [1, 0, 0 ,0, 0 ,1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
 };
+
+mat4.translateMat = function(m)
+{
+  return [1, 0, 0 ,0, 0 ,1, 0, 0, 0, 0, 1, 0, m[0], m[1], m[2], 1];
+};
+
 mat4.rotateX = function(angle)
 {
   var a = Math.cos(angle * Math.PI / 180);
@@ -377,4 +391,70 @@ function meshVolume(mesh)
   msg +="FacesNum:" + mesh.faceNum + "\n";
   msg +="Volume:" + v + "\n";
   fileDisplayArea.innerHTML = msg;
+}
+
+function camera(eye, target, up)
+{
+  this.orientation = null;
+  this.position = null;
+  this.distance = null;
+  this.target = null;
+
+  this.lookat = function(eye, center, up)
+  {
+    var zAxis = vec3.normalize(vec3.sub(eye, center));
+    var xAxis = vec3.normalize(vec3.cross(up, zAxis));
+    var yAxis = vec3.cross(zAxis, xAxis);
+    
+    this.orientation = [xAxis[0], xAxis[1], xAxis[2], 0,
+			yAxis[0], yAxis[1], yAxis[2], 0,
+			zAxis[0], zAxis[1], zAxis[2], 0,
+			0,        0,        0,        1];
+    
+    this.position = eye;
+    this.target = center;
+  };
+
+  this.lookat = function(boundingObj, up)
+  {
+    this.target = boundingObj.origin;
+    var eye = [0,0,0];
+    var toEye = vec3.normalize(vec3.sub(eye, this.target));
+    var tan = Math.tan(Math.PI/6); // View angle is 60 degree;
+    this.distance = boundingObj.radius / tan;
+    eye = vec3.add(this.target, vec3.multScale(this.distance, toEye));
+
+    var zAxis = vec3.normalize(vec3.sub(eye, this.target));
+    var xAxis = vec3.normalize(vec3.cross(up, zAxis));
+    var yAxis = vec3.cross(zAxis, xAxis);
+
+    this.orientation = [xAxis[0], xAxis[1], xAxis[2], 0,
+			yAxis[0], yAxis[1], yAxis[2], 0,
+			zAxis[0], zAxis[1], zAxis[2], 0,
+			0,        0,        0,        1];
+    
+    this.position = eye;
+  };
+
+  this.viewMat = function()
+  {
+    var invR = mat4.transpose(this.orientation);
+    var invT = mat4.translateMat(vec3.neg(this.position));
+    return mat4.mult(invR, invT);
+  };
+
+  this.rotateAroundPoint = function(r)
+  {
+    this.orientation = mat4.mult(r, this.orientation);
+    var backward = [this.orientation[8],
+		    this.orientation[9],
+		    this.orientation[10]];
+    var eye = vec3.add(this.target, vec3.multScale(this.distance, backward));
+    this.position = eye;
+  };
+
+  this.fitViewport = function()
+  {
+    
+  }; 
 }

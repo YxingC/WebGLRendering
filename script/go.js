@@ -281,7 +281,7 @@ function gObj(gl, shaderInfo)
 
   this.draw = function(type)
   {
-    this.mvMat = mat4.mult(vMat, this.mMat);
+    this.mvMat = mat4.mult(cam.viewMat(), this.mMat);
 
     // Temporary
     this.nMat = mat4.transpose(mat4.affineInv(this.mvMat));

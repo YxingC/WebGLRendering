@@ -2,7 +2,7 @@ var gl;
 var shaderProgram;
 var model = [];
 
-var cam = {};
+var cam;
 
 var vMat;
 var pMat;
@@ -200,6 +200,8 @@ function rendering()
 	   gl.DEPTH_BUFFER_BIT |
 	   gl.STENCIL_BUFFER_BIT);
 
+  //var cp = vec3.extrackCamPos_NoScale(vMat);
+  //console.log(cp);
   for(var i = 0; i < go.length; ++i)
   {
     go[i].draw("TRIANGLES");
@@ -292,9 +294,15 @@ function handleMouseMove(event)
   //   go[i].rotateWithMat(rotMatX);
   //   go[i].rotateWithMat(rotMatY);
   // }
+
+  // cam.orientation = mat4.mult(rotMatX, cam.orientation);
+  // cam.orientation = mat4.mult(rotMatZ, cam.orientation);
+  cam.rotateAroundPoint(rotMatX);
+  cam.rotateAroundPoint(rotMatZ);
   
-  vMat = mat4.mult(vMat, rotMatX);
-  vMat = mat4.mult(vMat, rotMatZ);
+  // cam.update([backward[0], backward[1], backward[2]]);
+  //vMat = mat4.mult(rotMatX, vMat);
+  //vMat = mat4.mult(rotMatZ, vMat);
 
   rendering();
 

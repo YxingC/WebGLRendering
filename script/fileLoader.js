@@ -182,19 +182,10 @@ function objLoader()
 
   // Findout the centroid of model.
   var boundingSphere = generateBoundingSphere(obj.vertices);
-  var eye = [0, 0, 0];
-  var target = boundingSphere.origin;
-  var toEye = vec3.normalize(vec3.sub(eye, target));
-  var tan = Math.tan((Math.PI/6));
-  var sin = Math.sin((Math.PI/6));
-  var dist = boundingSphere.radius / tan;
-  eye = vec3.add([0, 0, 0], vec3.multScale(dist,[0, 0, -1]));
-  console.log(boundingSphere);
-  console.log(target);
-  console.log(dist);
-  console.log(eye);
-  //vMat = mat4.lookatMat([0,0,-50], [0,0,0], [0, 1, 0]);
-  vMat = mat4.lookatMat(eye, [0, 0, 0], [0, 1, 0]);
+  
+  cam = new camera();
+  cam.lookat(boundingSphere, [0,1,0]);
+  //vMat = mat4.lookatMat(eye, [0, 0, 0], [0, 1, 0]);
   
   var shaderInfo = {data:{vertices: obj.vertices,
 			  faceIdx: obj.faceIdx,
@@ -215,7 +206,7 @@ function objLoader()
   { shaderInfo.data.color = obj.color; }
   
   go.push(new gObj(gl, shaderInfo));
-  go[go.length-1].translateN(vec3.neg(boundingSphere.origin));
+  //go[go.length-1].translateN(vec3.neg(boundingSphere.origin));
   rendering();
 }
 
